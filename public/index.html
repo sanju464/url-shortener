@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shortly - URL Shortener</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+<style>
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  font-family:"Poppins",sans-serif;
+}
+
+body{
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  color:white;
+  min-height:100vh;
+}
+
+/* Navbar */
+nav{
+  padding:20px 60px;
+  font-weight:600;
+  font-size:20px;
+}
+
+/* Hero */
+.hero{
+  text-align:center;
+  padding:60px 20px 40px;
+}
+
+.hero h1{
+  font-size:48px;
+  margin-bottom:15px;
+}
+
+.hero p{
+  font-size:18px;
+  opacity:.85;
+}
+
+/* Card */
+.card-wrapper{
+  display:flex;
+  justify-content:center;
+  margin-top:40px;
+}
+
+.container{
+  backdrop-filter:blur(18px);
+  background:rgba(255,255,255,0.1);
+  border-radius:16px;
+  padding:40px;
+  width:450px;
+  text-align:center;
+  box-shadow:0 8px 32px rgba(0,0,0,.3);
+}
+
+input{
+  width:100%;
+  padding:14px;
+  border-radius:8px;
+  border:none;
+  outline:none;
+  margin-bottom:15px;
+}
+
+button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:8px;
+  background:#00e676;
+  color:black;
+  font-weight:600;
+  cursor:pointer;
+  transition:.25s;
+}
+
+button:hover{
+  transform:translateY(-2px);
+  background:#00c853;
+}
+
+.result{ margin-top:20px; }
+
+.success{
+  color:#69f0ae;
+  margin-bottom:10px;
+}
+
+.error{
+  color:#ff5252;
+  margin-top:10px;
+}
+
+a{
+  color:white;
+  font-weight:bold;
+  word-break:break-all;
+}
+
+.copy-btn{
+  margin-top:10px;
+  background:white;
+  color:black;
+}
+
+/* Features */
+.features{
+  margin-top:80px;
+  display:flex;
+  justify-content:center;
+  gap:40px;
+  text-align:center;
+  padding-bottom:60px;
+}
+
+.feature{ max-width:250px; }
+
+footer{
+  text-align:center;
+  padding:20px;
+  opacity:.7;
+  font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<nav>🔗 Shortly</nav>
+
+<section class="hero">
+  <h1>Shorten Your Links Instantly</h1>
+  <p>Fast. Reliable. Secure URL shortening service.</p>
+</section>
+
+<div class="card-wrapper">
+<div class="container">
+
+<input id="urlInput" placeholder="Paste your long URL here..." />
+<button onclick="shortenUrl()">Shorten URL</button>
+
+<div id="error" class="error"></div>
+<div id="result" class="result"></div>
+
+<button id="qrToggleBtn" style="display:none;margin-top:15px;">
+  Show QR Code
+</button>
+
+<div id="qrcode" style="margin-top:20px;display:none;"></div>
+
+</div>
+</div>
+
+<section class="features">
+<div class="feature">
+<h3>⚡ Fast</h3>
+<p>Instant redirection with optimized backend performance.</p>
+</div>
+
+<div class="feature">
+<h3>🔒 Secure</h3>
+<p>SQL primary key validation & safe link management.</p>
+</div>
+
+<div class="feature">
+<h3>📊 Analytics</h3>
+<p>Track clicks and manage your shortened links easily.</p>
+</div>
+</section>
+
+<footer>
+© 2026 Shortly. Built with Node.js & PostgreSQL.
+</footer>
+
+<script>
+async function shortenUrl() {
+  const url = document.getElementById("urlInput").value;
+  const error = document.getElementById("error");
+  const result = document.getElementById("result");
+  const toggleBtn = document.getElementById("qrToggleBtn");
+  const qrContainer = document.getElementById("qrcode");
+
+  error.innerHTML="";
+  result.innerHTML="";
+
+  // reset QR state
+  toggleBtn.style.display="none";
+  qrContainer.style.display="none";
+  qrContainer.innerHTML="";
+
+  if(!url){
+    error.innerHTML="Please enter a URL.";
+    return;
+  }
+
+  try{
+    const response = await fetch("/shorten",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({url})
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      error.innerHTML=data.error;
+      return;
+    }
+
+    result.innerHTML=`
+      <div class="success">✅ Short URL Created</div>
+      <a href="${data.shortUrl}" target="_blank">${data.shortUrl}</a>
+      <button class="copy-btn" onclick="copyLink('${data.shortUrl}')">Copy</button>
+    `;
+
+    toggleBtn.style.display="block";
+    toggleBtn.textContent="Show QR Code";
+
+    let qrGenerated=false;
+
+    toggleBtn.onclick=function(){
+      if(qrContainer.style.display==="none"){
+        qrContainer.style.display="block";
+        toggleBtn.textContent="Hide QR Code";
+
+        if(!qrGenerated){
+          generateQR(data.shortUrl);
+          qrGenerated=true;
+        }
+      }else{
+        qrContainer.style.display="none";
+        toggleBtn.textContent="Show QR Code";
+      }
+    };
+
+  }catch{
+    error.innerHTML="Server error. Try again.";
+  }
+}
+
+function copyLink(link){
+  navigator.clipboard.writeText(link);
+
+  const result=document.getElementById("result");
+  const msg=document.createElement("div");
+  msg.textContent="✅ Copied!";
+  msg.style.marginTop="8px";
+  msg.style.color="#69f0ae";
+
+  result.appendChild(msg);
+  setTimeout(()=>msg.remove(),1500);
+}
+
+function generateQR(link){
+  const qrContainer=document.getElementById("qrcode");
+  qrContainer.innerHTML="";
+
+  QRCode.toCanvas(link,{width:200},function(err,canvas){
+    if(err){ console.error(err); return; }
+    qrContainer.appendChild(canvas);
+  });
+}
+</script>
+
+</body>
+</html>
